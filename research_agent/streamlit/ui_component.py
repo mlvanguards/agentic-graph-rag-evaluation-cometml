@@ -1,6 +1,5 @@
 import streamlit as st
 from typing import List, Callable
-from research_agent.streamlit.message import Message
 from langchain.schema import HumanMessage, AIMessage
 
 class ChatDisplay:

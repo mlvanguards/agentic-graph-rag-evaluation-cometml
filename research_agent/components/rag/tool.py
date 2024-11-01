@@ -6,7 +6,7 @@ from typing import Optional, Dict
 from research_agent.components.experiment_tracker import MetricsCollector
 import time
 
-class RAGTool:
+class RAG:
     def __init__(
         self,
         vector_store: VectorStore,

@@ -2,22 +2,21 @@ import uuid
 import time
 import logging
 from typing import Dict, Any
-import warnings
+
+from langchain_community.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage, AIMessage
 
 from research_agent.config.settings import Settings
 from research_agent.core.graph import create_research_graph
 from research_agent.components.database.neo4j_client import Neo4jClient
 from research_agent.components.paper.tool import PaperTool
-from research_agent.components.rag.tool import RAGTool
+from research_agent.components.rag.tool import RAG
 from research_agent.components.rag.embeddings import Embedding
 from research_agent.components.database.vector_store import VectorStore
 from research_agent.components.experiment_tracker import ExperimentTracker
 from research_agent.tools.paper_lookup import PaperLookupTool
-from research_agent.tools.rag import RAG
+from research_agent.tools.rag import RAGTool
 from research_agent.agents.research_assistant import ResearchAssistant
-from langchain.schema import HumanMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,24 +37,11 @@ logger = logging.getLogger(__name__)
 class Coordinator:
     def __init__(self):
         self.settings = Settings()
-        self.setup_warnings()
         self.experiment_tracker = self.setup_experiment_tracker()
         self.services = self.initialize_services()
         self.tools = self.initialize_tools()
         self.assistant = self.initialize_assistant()
         self.graph = self.setup_graph()
-
-    @staticmethod
-    def setup_warnings():
-        """Configure warning filters"""
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-    def _validate_settings(self):
-        if not self.settings.openai_api_key:
-            raise ValueError("OpenAI API key not found in settings")
-        if not self.settings.openai_api_key.startswith("sk-"):
-            raise ValueError("Invalid OpenAI API key format")
-        os.environ["OPENAI_API_KEY"] = self.settings.openai_api_key
 
     def setup_experiment_tracker(self) -> ExperimentTracker:
         """Initialize the experiment tracker"""
@@ -76,7 +62,9 @@ class Coordinator:
             user=self.settings.neo4j_user,
             password=self.settings.neo4j_password
         )
-
+        with db_client.session() as session:
+            result = session.run("RETURN 1 as num").single()
+            print(f"Initial connection test result: {result['num']}")
         # Embedding service
         embedding_service = Embedding(api_key=self.settings.openai_api_key)
 
@@ -91,7 +79,7 @@ class Coordinator:
         paper_service = PaperTool(db_client=db_client)
 
         # RAG service
-        rag_service = RAGTool(
+        rag_service = RAG(
             vector_store=vector_store,
             openai_api_key=self.settings.openai_api_key
         )
@@ -109,7 +97,7 @@ class Coordinator:
         paper_lookup_tool = PaperLookupTool(
             paper_service=self.services["paper_service"]
         )
-        rag_tool = RAG(
+        rag_tool = RAGTool(
             rag_service=self.services["rag_service"]
         )
         return {
@@ -118,27 +106,17 @@ class Coordinator:
         }
 
     def initialize_assistant(self) -> ResearchAssistant:
-        """Initialize the research assistant"""
-        prompt = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                """You are a helpful AI assistant for research papers. You can:
-                1. Look up specific papers using their ID (e.g., "0704.2002")
-                2. Answer general questions about research topics using the RAG system
-                3. Provide detailed information about papers and research
-                4. Reference our previous conversation as needed
-
-                When referencing previous conversation, be specific about what was discussed.
-                """
-            ),
-            ("placeholder", "{messages}")
-        ])
+        """Initialize the research assistant."""
+        llm = ChatOpenAI(
+            temperature=0,
+            openai_api_key=self.settings.openai_api_key
+        )
+        tools = [self.tools["paper_lookup"], self.tools["rag"]]
 
         return ResearchAssistant(
-            prompt=prompt,
             experiment_tracker=self.experiment_tracker,
-            paper_service=self.services["paper_service"],
-            rag_service=self.services["rag_service"]
+            tools=tools,
+            llm=llm
         )
 
     def setup_graph(self) -> Any:
@@ -150,9 +128,14 @@ class Coordinator:
         )
 
     def process_message(self, message: str, state: Dict[str, Any]) -> None:
-        """Process a single message and update state"""
         try:
             state["messages"].append(HumanMessage(content=message))
+
+            # Log conversation metrics
+            self.experiment_tracker.experiment.log_metrics({
+                "conversation_turn": len(state["messages"]),
+                "message_length": len(message)
+            })
 
             # Directly call the assistant
             response = self.assistant(state)
@@ -160,13 +143,17 @@ class Coordinator:
             # Append assistant's messages to the state
             state["messages"].extend(response["messages"])
 
-            # Print the assistant's response
+            # Log response metrics
             for msg in response["messages"]:
                 if isinstance(msg, AIMessage):
+                    self.experiment_tracker.experiment.log_metrics({
+                        "response_length": len(msg.content)
+                    })
                     print(f"Assistant: {msg.content}")
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
+            self.experiment_tracker.experiment.log_metric("errors", 1)
             print(f"An error occurred: {str(e)}")
 
     def run(self):
@@ -199,14 +186,29 @@ class Coordinator:
     def cleanup(self):
         """Clean up resources and log final metrics"""
         try:
+            # Calculate session duration
+            if hasattr(self, 'experiment_tracker'):
+                session_end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                self.experiment_tracker.experiment.log_parameter("session_end", session_end_time)
+
+                # Log final session metrics
+                final_metrics = {
+                    "total_messages": len(self.assistant.memory.chat_memory.messages),
+                    "total_user_messages": len(
+                        [m for m in self.assistant.memory.chat_memory.messages if isinstance(m, HumanMessage)]),
+                    "total_ai_messages": len(
+                        [m for m in self.assistant.memory.chat_memory.messages if isinstance(m, AIMessage)])
+                }
+                self.experiment_tracker.experiment.log_metrics(final_metrics)
+
+                # End the experiment
+                self.experiment_tracker.experiment.end()
+
             # Close database connections
             self.services["db_client"].close()
 
-            # Log final metrics
-            if hasattr(self, 'session_metrics'):
-                self.experiment_tracker.end_session(self.session_metrics)
-
             print("\nSession ended. Thank you for using the Research Paper Assistant!")
+
 
         except Exception as e:
             logger.error(f"Error during cleanup: {str(e)}")
