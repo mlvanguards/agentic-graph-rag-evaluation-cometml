@@ -78,7 +78,7 @@ The system consists of several key components:
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/cube-digital/agentic-graph-rag-evaluation-cometml/tree/feature/research-paper-agentic-graph-rag
+   git clone https://github.com/mlvanguards/agentic-graph-rag-evaluation-cometml.git
    ```
 
 2. **Install Dependencies**
