@@ -45,7 +45,8 @@ Traditional RAG systems often struggle with linear document retrieval, context b
 - Session state management
 - Metric visualization
 
-## System Architecture
+## System Architecture![Copy of Template Diagrame (1200 x 800 px) (1200 x 900 px) (1200 x 700 px)(3)](https://github.com/user-attachments/assets/79ac7fc8-03f1-41f7-b5f7-37e55955ad11)
+
 
 The system consists of several key components:
 
@@ -66,7 +67,6 @@ The system consists of several key components:
    - Performance visualization
    - Error tracking
    - Session analytics
-![Copy of Template Diagrame (1200 x 800 px) (1200 x 900 px) (1200 x 700 px)(3)](https://github.com/user-attachments/assets/79ac7fc8-03f1-41f7-b5f7-37e55955ad11)
 
 ## Prerequisites
 
