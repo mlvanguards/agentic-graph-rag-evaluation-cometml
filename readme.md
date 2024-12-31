@@ -67,8 +67,9 @@ The system consists of several key components:
    - Error tracking
    - Session analytics
   
-## Prerequis![Copy of Template Diagrame (1200 x 800 px) (1200 x 900 px) (1200 x 700 px)(3)](https://github.com/user-attachments/assets/79ac7fc8-03f1-41f7-b5f7-37e55955ad11)
-ites
+## Prerequisites
+![Copy of Template Diagrame (1200 x 800 px) (1200 x 900 px) (1200 x 700 px)(3)](https://github.com/user-attachments/assets/79ac7fc8-03f1-41f7-b5f7-37e55955ad11)
+
 
 - Neo4j Database
 - CometML Account
