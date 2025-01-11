@@ -1,7 +1,7 @@
 from src.components.database.neo4j_client import Neo4jClient
 from src.components.paper.models import Paper
 from typing import Dict, Any
-from src.components.experiment_tracker import MetricsCollector
+from src.components.evaluation.experiment_tracker import MetricsCollector
 import logging
 from neo4j.exceptions import AuthError, ServiceUnavailable
 import time

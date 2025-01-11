@@ -3,7 +3,7 @@ from pydantic import PrivateAttr
 import time
 
 from src.components.rag.tool import RAG
-from src.components.experiment_tracker import ExperimentTracker, MetricsCollector, MetricsData
+from src.components.evaluation.experiment_tracker import ExperimentTracker, MetricsCollector, MetricsData
 
 class RAGTool(BaseTool):
     name: str = "RAG"

@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 import time
 from dataclasses import dataclass
 import tiktoken
-
+from opik.evaluation.metrics import Hallucination
 @dataclass
 class MetricsData:
     processing_time: float

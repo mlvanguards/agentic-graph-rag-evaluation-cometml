@@ -1,10 +1,11 @@
 from typing import Dict, Any, List
 import time
+import json
 
 from langchain_community.chat_models import ChatOpenAI
 from langchain.schema import AIMessage
 
-from src.components.experiment_tracker import ExperimentTracker
+from src.components.evaluation.experiment_tracker import ExperimentTracker
 from src.core.state import ConversationState
 from langchain.memory import ConversationBufferMemory
 from dotenv import load_dotenv
@@ -35,50 +36,56 @@ class ResearchAssistant(BaseAgent):
         )
 
     def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        # Get the latest user message
         last_message = state["messages"][-1]
         query_content = last_message.content
 
-        # Start timing
         start_time = time.time()
-
-        # Log the input query
         self.experiment_tracker.experiment.log_parameter("input_query", query_content)
 
-        # Append the user's message to the memory
+        # Add user message to memory
         self.memory.chat_memory.add_user_message(query_content)
 
-        # Call the agent executor
-        response = self.agent_executor.run(input=query_content)
+        # 1) Run the agent
+        response_text = self.agent_executor.run(input=query_content)
 
-        # Calculate processing time
         processing_time = time.time() - start_time
-
-        # Log metrics
         self.experiment_tracker.experiment.log_metrics({
             "processing_time": processing_time,
-            "response_length": len(response),
+            "response_length": len(response_text),
             "query_length": len(query_content)
         })
 
-        # If tools were used, log their metrics
         if "metrics" in state:
             self.experiment_tracker.experiment.log_metrics(state["metrics"])
 
-        # Append the agent's response to the conversation
-        state["messages"].append(AIMessage(content=response))
+        ground_truth = ""
+        tool_answer = response_text  # fallback is the entire text
 
-        # Also, add the assistant's response to the memory
-        self.memory.chat_memory.add_ai_message(response)
+        try:
+            parsed = json.loads(response_text)
+            if isinstance(parsed, dict) and "ground_truth" in parsed:
+                ground_truth = parsed["ground_truth"]
+                tool_answer = parsed["tool_answer"]
+        except:
+            pass
+        final_response = tool_answer
 
-        return {"messages": [AIMessage(content=response)]}
+        # Add final response to memory and state
+        state["messages"].append(AIMessage(content=final_response))
+        self.memory.chat_memory.add_ai_message(final_response)
+
+        return {
+            "messages": [AIMessage(content=final_response)],
+            # Put the ground truth somewhere so we can pick it up in coordinator
+            "tool_output": {"paper_ground_truth": ground_truth}
+        }
 
     def process_message(self, state: ConversationState) -> Dict[str, Any]:
         """Process a message. This method is required by BaseAgent but is not used."""
-        # Since we're handling message processing in __call__, we can leave this empty.
+        # Since we're handling message processing in __call__, we can leave this empty just to not get an error.
         pass
 
     def handle_error(self, error: Exception) -> Dict[str, Any]:
-        """Generic error handler"""
+        """Generic error handler which is required by BaseAgent but is not used."""
         error_message = f"An error occurred: {str(error)}"
         return {"messages": [AIMessage(content=error_message)]}

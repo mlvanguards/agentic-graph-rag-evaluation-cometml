@@ -3,7 +3,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import OpenAI
 from langchain.chains.llm import LLMChain
 from typing import Optional, Dict
-from src.components.experiment_tracker import MetricsCollector
+from src.components.evaluation.experiment_tracker import MetricsCollector
 import time
 
 class RAG:

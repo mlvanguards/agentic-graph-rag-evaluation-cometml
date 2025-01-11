@@ -3,9 +3,10 @@ from src.utils.paper_id_extractor import PaperIdExtractor
 from langchain.tools.base import BaseTool
 from pydantic import PrivateAttr
 import time
+import json
 
-from src.components.experiment_tracker import ExperimentTracker
-from src.components.experiment_tracker import MetricsCollector, MetricsData
+from src.components.evaluation.experiment_tracker import ExperimentTracker
+from src.components.evaluation.experiment_tracker import MetricsCollector, MetricsData
 
 
 class PaperLookupTool(BaseTool):
@@ -42,19 +43,29 @@ class PaperLookupTool(BaseTool):
             paper_id = self._paper_id_extractor.extract(query)
             if not paper_id:
                 response_text = "No valid paper ID found in the message."
-                return response_text
+                return json.dumps({
+                    "ground_truth": "",
+                    "tool_answer": response_text
+                })
 
             # Get paper info with metrics
             result = self._paper_service.find_paper_by_id(paper_id)
             if result["success"]:
-                response_text = result["response"]
+                # The “official text” from the DB
+                ground_truth = result["response"]
                 success = True
+                tool_answer = (
+                    f"Here is the paper with ID {paper_id}:\n\n"
+                    f"{ground_truth}"
+                )
             else:
-                response_text = f"Paper with ID {paper_id} not found."
-
+                ground_truth = ""
+                tool_answer = f"Paper with ID {paper_id} not found."
         except Exception as e:
+            ground_truth = ""
             error_msg = str(e)
-            response_text = f"Error looking up paper: {error_msg}"
+            tool_answer = f"Error looking up paper: {error_msg}"
+            success = False
 
         # End timing
         end_time = time.time()
@@ -74,4 +85,7 @@ class PaperLookupTool(BaseTool):
         if paper_id:
             self._experiment_tracker.log_paper_lookup(paper_id, metrics_data)
 
-        return response_text
+        return json.dumps({
+            "ground_truth": ground_truth,
+            "tool_answer": tool_answer
+        })
