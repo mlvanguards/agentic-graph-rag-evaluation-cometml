@@ -101,16 +101,16 @@ The system consists of several key components:
 
 1. **Data Preprocessing**
    ```python
-   python scripts/preprocess_data.py --input arxiv_data.json --output processed_data.json
+   python -m scripts/preprocess_data.py --input arxiv_data.json --output processed_data.json
    ```
 
 2. **Database Ingestion**
    ```python
    cd src/
-   python components/database/ingest.py
+   python -m components/database/ingest.py
    ```
 
 3. **Start the Application**
    ```python
-   streamlit run main.py
+   python -m streamlit run main.py
    ```
