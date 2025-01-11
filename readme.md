@@ -45,7 +45,8 @@ Traditional RAG systems often struggle with linear document retrieval, context b
 - Session state management
 - Metric visualization
 
-## System Architecture
+## System Architecture![Copy of Template Diagrame (1200 x 800 px) (1200 x 900 px) (1200 x 700 px)(3)](https://github.com/user-attachments/assets/79ac7fc8-03f1-41f7-b5f7-37e55955ad11)
+
 
 The system consists of several key components:
 
@@ -78,7 +79,7 @@ The system consists of several key components:
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/cube-digital/agentic-graph-rag-evaluation-cometml/tree/feature/research-paper-agentic-graph-rag
+   git clone https://github.com/mlvanguards/agentic-graph-rag-evaluation-cometml.git
    ```
 
 2. **Install Dependencies**
